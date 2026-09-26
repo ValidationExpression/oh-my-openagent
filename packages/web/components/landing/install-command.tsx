@@ -72,6 +72,7 @@ export function CommandBar({ command, className }: CommandBarProps): JSX.Element
         </span>
         <span aria-hidden="true" className="copy-label" data-shown={copied ? "true" : "false"}>
           <svg
+            data-testid="copy-check"
             viewBox="0 0 12 12"
             className="copy-check size-3"
             fill="none"

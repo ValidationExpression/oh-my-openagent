@@ -1,6 +1,17 @@
 import { describe, expect, test } from "bun:test"
 
-import { SPRING_LEAD, SPRING_TRAIL, SpringTrack, settleTime, springStep } from "./morph-spring"
+import {
+  FOLD_EPSILON,
+  SPRING_LEAD,
+  SPRING_TRAIL,
+  SpringTrack,
+  residualBound,
+  springStep,
+  type Spring,
+} from "./morph-spring"
+
+const CRITICAL: Spring = { omega: 10, zeta: 1 }
+const OVERDAMPED: Spring = { omega: 8, zeta: 1.4 }
 
 describe("springStep", () => {
   test("#given the lead spring #when sampled #then it starts at rest, overshoots slightly and settles at 1", () => {
@@ -9,7 +20,7 @@ describe("springStep", () => {
     expect(springStep(0, SPRING_LEAD)).toBe(0)
     expect(Math.max(...samples)).toBeGreaterThan(1)
     expect(Math.max(...samples)).toBeLessThan(1.05)
-    expect(springStep(settleTime(SPRING_LEAD), SPRING_LEAD)).toBeCloseTo(1, 3)
+    expect(springStep(3, SPRING_LEAD)).toBeCloseTo(1, 6)
   })
 
   test("#given the trail spring #when compared with the lead at the same instant #then it lags behind", () => {
@@ -25,7 +36,48 @@ describe("springStep", () => {
   })
 })
 
+describe("residualBound", () => {
+  test.each([
+    ["lead", SPRING_LEAD],
+    ["trail", SPRING_TRAIL],
+    ["critical", CRITICAL],
+    ["overdamped", OVERDAMPED],
+  ] as const)(
+    "#given the %s spring #when sampled for 4s #then it bounds the distance to rest",
+    (_, spring) => {
+      for (let i = 1; i <= 4000; i++) {
+        const t = i / 1000
+        expect(Math.abs(1 - springStep(t, spring))).toBeLessThanOrEqual(
+          residualBound(t, spring) + 1e-12,
+        )
+      }
+    },
+  )
+})
+
 describe("SpringTrack", () => {
+  test.each([
+    ["lead", SPRING_LEAD],
+    ["trail", SPRING_TRAIL],
+    ["critical", CRITICAL],
+    ["overdamped", OVERDAMPED],
+  ] as const)(
+    "#given a large %s move #when changes are folded #then the value never departs from the exact sum of steps",
+    (_, spring) => {
+      const track = new SpringTrack(0)
+      track.retarget(1000, 0, spring)
+      track.retarget(-400, 0.35, spring)
+      let maxError = 0
+      for (let i = 0; i <= 6000; i++) {
+        const t = i / 1000
+        const exact = 1000 * springStep(t, spring) - 1400 * springStep(t - 0.35, spring)
+        maxError = Math.max(maxError, Math.abs(track.valueAt(t) - exact))
+      }
+      expect(maxError).toBeLessThan(FOLD_EPSILON)
+      expect(track.isSettled(6)).toBe(true)
+    },
+  )
+
   test("#given a retarget mid-flight #when sampled #then the value is continuous and reaches the final target", () => {
     const track = new SpringTrack(0)
     track.retarget(100, 0, SPRING_LEAD)

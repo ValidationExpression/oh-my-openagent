@@ -247,6 +247,11 @@ test.describe("Landing Page", () => {
       "true",
     )
     await expect(bar.getByRole("status")).toHaveText("Install command copied")
+    const check = bar.getByTestId("copy-check")
+    await expect(check).toBeVisible()
+    await expect
+      .poll(async () => check.evaluate((node) => getComputedStyle(node).transform))
+      .toBe("matrix(1, 0, 0, 1, 0, 0)")
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("bun install -g omo-ai")
   })
 

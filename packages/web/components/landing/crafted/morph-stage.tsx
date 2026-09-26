@@ -154,6 +154,10 @@ export function MorphStage({
     if (reduced || !visible) return
     let frame = 0
     const clock = clockRef.current
+    const restartBaseline = (): void => {
+      clock.lastWall = 0
+    }
+    document.addEventListener("visibilitychange", restartBaseline)
     const tick = (wall: number): void => {
       const running = document.visibilityState === "visible"
       if (running && clock.lastWall !== 0)
@@ -185,6 +189,7 @@ export function MorphStage({
     frame = requestAnimationFrame(tick)
     return () => {
       cancelAnimationFrame(frame)
+      document.removeEventListener("visibilitychange", restartBaseline)
       clock.lastWall = 0
     }
   }, [reduced, visible, onAdvance, paint])

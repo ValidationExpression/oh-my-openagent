@@ -31,13 +31,28 @@ export function springStep(t: number, spring: Spring): number {
   return 1 + (slow * Math.exp(fast * t) - fast * Math.exp(slow * t)) / (fast - slow)
 }
 
-export function settleTime(spring: Spring, tolerance = 1e-4): number {
-  const envelope = spring.zeta < 1 ? 1 / Math.sqrt(1 - spring.zeta * spring.zeta) : 2
-  const rate =
-    spring.zeta <= 1
-      ? spring.zeta * spring.omega
-      : spring.omega * (spring.zeta - Math.sqrt(spring.zeta * spring.zeta - 1))
-  return Math.log(envelope / tolerance) / rate
+/**
+ * An upper bound on |1 − step(t)|: underdamped e^(−ζωt)/√(1−ζ²), critical (1+ωt)e^(−ωt),
+ * overdamped ((a+b)/(b−a))·e^(−at) with a, b = ω(ζ ∓ √(ζ²−1)).
+ */
+export function residualBound(t: number, spring: Spring): number {
+  const { omega, zeta } = spring
+  if (zeta < 1) return Math.exp(-zeta * omega * t) / Math.sqrt(1 - zeta * zeta)
+  if (zeta === 1) return (1 + omega * t) * Math.exp(-omega * t)
+  const root = Math.sqrt(zeta * zeta - 1)
+  const slow = omega * (zeta - root)
+  const fast = omega * (zeta + root)
+  return ((slow + fast) / (fast - slow)) * Math.exp(-slow * t)
+}
+
+/** A folded change moves the value by less than this, far below one device pixel. */
+export const FOLD_EPSILON = 1e-3
+
+function isFoldable(change: Change, t: number): boolean {
+  const elapsed = t - change.at
+  return (
+    elapsed > 0 && Math.abs(change.delta) * residualBound(elapsed, change.spring) < FOLD_EPSILON
+  )
 }
 
 interface Change {
@@ -76,7 +91,7 @@ export class SpringTrack {
     const kept: Change[] = []
     for (const change of this.changes) {
       const elapsed = t - change.at
-      if (elapsed > settleTime(change.spring)) {
+      if (isFoldable(change, t)) {
         this.base += change.delta
         value += change.delta
         continue
@@ -89,6 +104,6 @@ export class SpringTrack {
   }
 
   isSettled(t: number): boolean {
-    return this.changes.every((change) => t - change.at > settleTime(change.spring))
+    return this.changes.every((change) => isFoldable(change, t))
   }
 }
