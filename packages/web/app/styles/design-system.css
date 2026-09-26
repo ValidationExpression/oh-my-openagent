@@ -1318,13 +1318,12 @@
     transform: scale(0.9);
     transition-duration: var(--dur-swap-out);
   }
-  .copy-check path {
-    stroke-dasharray: 24;
-    stroke-dashoffset: 24;
-    transition: stroke-dashoffset var(--dur-swap-in) var(--ease-out-quart) 80ms;
+  .copy-check {
+    transform: scale(0.4);
+    transition: transform var(--dur-spring) var(--ease-spring) 60ms;
   }
-  .copy-cell[data-copied="true"] .copy-check path {
-    stroke-dashoffset: 0;
+  .copy-cell[data-copied="true"] .copy-check {
+    transform: scale(1);
   }
   @media (prefers-reduced-motion: reduce) {
     .morph-scene-in,
@@ -1344,8 +1343,8 @@
       transform: none;
       transition: opacity var(--dur-micro) var(--ease-standard);
     }
-    .copy-check path {
-      stroke-dashoffset: 0;
+    .copy-check {
+      transform: none;
       transition: none;
     }
   }
